@@ -8,14 +8,14 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import io.github.thebusybiscuit.slimefun4.core.handlers.ItemUseHandler;
+import io.github.thebusybiscuit.slimefun4.implementation.items.SimpleSlimefunItem;
 import me.mrCookieSlime.Slimefun.Lists.RecipeType;
 import me.mrCookieSlime.Slimefun.Objects.Category;
-import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.HandledBlock;
-import me.mrCookieSlime.Slimefun.Objects.handlers.ItemUseHandler;
 import me.mrCookieSlime.Slimefun.api.SlimefunItemStack;
 import me.mrCookieSlime.Slimefun.cscorelib2.inventory.ItemUtils;
 
-public class ExoticGardenFruit extends HandledBlock {
+public class ExoticGardenFruit extends SimpleSlimefunItem<ItemUseHandler> {
 
     private final boolean edible;
 
@@ -25,12 +25,12 @@ public class ExoticGardenFruit extends HandledBlock {
     }
 
     @Override
-    public void preRegister() {
-        addItemHandler(onRightClick());
-        super.preRegister();
+    public boolean useVanillaBlockBreaking() {
+        return true;
     }
 
-    public ItemUseHandler onRightClick() {
+    @Override
+    public ItemUseHandler getItemHandler() {
         return e -> {
             Optional<Block> block = e.getClickedBlock();
 
@@ -38,7 +38,7 @@ public class ExoticGardenFruit extends HandledBlock {
                 Material material = block.get().getType();
 
                 // Cancel the Block placement if the Player sneaks or the Block is not interactable
-                if (!material.isInteractable() || e.getPlayer().isSneaking()) {
+                if (e.getPlayer().isSneaking() || !isInteractable(material)) {
                     e.cancel();
                 }
                 else {
@@ -51,6 +51,25 @@ public class ExoticGardenFruit extends HandledBlock {
                 ItemUtils.consumeItem(e.getItem(), false);
             }
         };
+    }
+
+    private boolean isInteractable(Material material) {
+        // We cannot rely on Material#isInteractable() sadly
+        // as it would allow the placement of this block on strange items like stairs...
+        switch (material) {
+        case ANVIL:
+        case BREWING_STAND:
+        case CAKE:
+        case CHEST:
+        case HOPPER:
+        case TRAPPED_CHEST:
+        case ENDER_CHEST:
+        case CAULDRON:
+        case SHULKER_BOX:
+            return true;
+        default:
+            return material.name().equals("BARREL") || material.name().endsWith("_SHULKER_BOX");
+        }
     }
 
     protected int getFoodValue() {

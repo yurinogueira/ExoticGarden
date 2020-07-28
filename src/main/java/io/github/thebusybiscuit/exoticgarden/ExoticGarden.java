@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 
-import io.papermc.lib.PaperLib;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Effect;
@@ -32,14 +31,16 @@ import io.github.thebusybiscuit.exoticgarden.items.CustomFood;
 import io.github.thebusybiscuit.exoticgarden.items.ExoticGardenFruit;
 import io.github.thebusybiscuit.exoticgarden.items.GrassSeeds;
 import io.github.thebusybiscuit.exoticgarden.items.Kitchen;
+import io.github.thebusybiscuit.exoticgarden.items.MagicalEssence;
 import io.github.thebusybiscuit.slimefun4.api.SlimefunAddon;
+import io.github.thebusybiscuit.slimefun4.core.researching.Research;
+import io.github.thebusybiscuit.slimefun4.implementation.SlimefunItems;
+import io.github.thebusybiscuit.slimefun4.implementation.SlimefunPlugin;
 import io.github.thebusybiscuit.slimefun4.implementation.items.food.Juice;
+import io.papermc.lib.PaperLib;
 import me.mrCookieSlime.CSCoreLibPlugin.general.Inventory.Item.CustomPotion;
-import me.mrCookieSlime.Slimefun.SlimefunPlugin;
 import me.mrCookieSlime.Slimefun.Lists.RecipeType;
-import me.mrCookieSlime.Slimefun.Lists.SlimefunItems;
 import me.mrCookieSlime.Slimefun.Objects.Category;
-import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.HandledBlock;
 import me.mrCookieSlime.Slimefun.Objects.SlimefunItem.SlimefunItem;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
 import me.mrCookieSlime.Slimefun.api.Slimefun;
@@ -101,6 +102,10 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 
         kitchen = new Kitchen(this, miscCategory);
         kitchen.register(this);
+
+		Research kitchenResearch = new Research(new NamespacedKey(this, "kitchen"), 600, "Kitchen", 30);
+		kitchenResearch.addItems(kitchen);
+		kitchenResearch.register();
         
 		SlimefunItemStack iceCube = new SlimefunItemStack("ICE_CUBE", "9340bef2c2c33d113bac4e6a1a84d5ffcecbbfab6b32fa7a7f76195442bd1a2", "&bIce Cube");
 		new SlimefunItem(miscCategory, iceCube, RecipeType.GRIND_STONE,
@@ -727,11 +732,11 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 		Tree tree = new Tree(id, texture, soil);
 		trees.add(tree);
 
-		SlimefunItemStack sfi = new SlimefunItemStack(id + "_SAPLING", Material.OAK_SAPLING, color + name + " Sapling");
+		SlimefunItemStack sapling = new SlimefunItemStack(id + "_SAPLING", Material.OAK_SAPLING, color + name + " Sapling");
 
-		items.put(id + "_SAPLING", sfi);
+		items.put(id + "_SAPLING", sapling);
 
-		new SlimefunItem(mainCategory, sfi, ExoticGardenRecipeTypes.BREAKING_GRASS,
+		new SlimefunItem(mainCategory, sapling, ExoticGardenRecipeTypes.BREAKING_GRASS,
 		new ItemStack[] {null, null, null, null, new ItemStack(Material.GRASS), null, null, null, null})
 		.register(this);
 
@@ -772,7 +777,7 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 		}
 	}
 
-	private void registerBerry(String name, ChatColor color, Color potionColor, PlantType type, String texture) {
+	public void registerBerry(String name, ChatColor color, Color potionColor, PlantType type, String texture) {
 		String upperCase = name.toUpperCase(Locale.ROOT);
 		Berry berry = new Berry(upperCase, type, texture);
 		berries.add(berry);
@@ -808,12 +813,12 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 		.register(this);
 	}
 
-	private static ItemStack getItem(String id) {
+	public static ItemStack getItem(String id) {
 		SlimefunItem item = SlimefunItem.getByID(id);
 		return item != null ? item.getItem() : null;
 	}
 
-	private void registerPlant(String name, ChatColor color, PlantType type, String texture) {
+	public void registerPlant(String name, ChatColor color, PlantType type, String texture) {
 		String upperCase = name.toUpperCase(Locale.ROOT);
 		String enumStyle = upperCase.replace(' ', '_');
 
@@ -845,54 +850,46 @@ public class ExoticGarden extends JavaPlugin implements SlimefunAddon {
 		recipe)
 		.register(this);
 
-		HandledBlock plant = new HandledBlock(magicalCategory, essence, RecipeType.ENHANCED_CRAFTING_TABLE,
-		new ItemStack[] {essence, essence, essence, essence, null, essence, essence, essence, essence});
+		MagicalEssence magicalEssence = new MagicalEssence(magicalCategory, essence);
 
-		plant.setRecipeOutput(item.clone());
-		plant.register(this);
+		magicalEssence.setRecipeOutput(item.clone());
+		magicalEssence.register(this);
 	}
 
 	public static ItemStack harvestPlant(Block block) {
-		ItemStack itemstack = null;
 		SlimefunItem item = BlockStorage.check(block);
-		
-		if (item != null) {
-			for (Berry berry : instance.berries) {
-				if (item.getID().equalsIgnoreCase(berry.getID())) {
-					switch (berry.getType()) {
-						case ORE_PLANT:
-						case DOUBLE_PLANT:
-							Block plant = block;
-							
-							if (BlockStorage.check(block.getRelative(BlockFace.DOWN)) == null) {
-								BlockStorage.clearBlockInfo(block.getRelative(BlockFace.UP));
-								block.getWorld().playEffect(block.getRelative(BlockFace.UP).getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
-								block.getRelative(BlockFace.UP).setType(Material.AIR);
-							}
-							else {
-								plant = block.getRelative(BlockFace.DOWN);
-								BlockStorage.clearBlockInfo(block);
-								block.getWorld().playEffect(block.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
-								block.setType(Material.AIR);
-							}
-							
-							plant.setType(Material.OAK_SAPLING);
-							itemstack = berry.getItem();
-							BlockStorage._integrated_removeBlockInfo(plant.getLocation(), false);
-							BlockStorage.store(plant, getItem(berry.toBush()));
-							break;
-						default:
-							block.setType(Material.OAK_SAPLING);
-							itemstack = berry.getItem();
-							BlockStorage._integrated_removeBlockInfo(block.getLocation(), false);
-							BlockStorage.store(block, getItem(berry.toBush()));
-							break;
-					}
+		if (item == null) return null;
+
+		for (Berry berry : getBerries()) {
+			if (item.getID().equalsIgnoreCase(berry.getID())) {
+				switch (berry.getType()) {
+					case ORE_PLANT:
+					case DOUBLE_PLANT:
+						Block plant = block;
+
+						if (Tag.LEAVES.isTagged(block.getType()))
+							block = block.getRelative(BlockFace.UP);
+						else
+							plant = block.getRelative(BlockFace.DOWN);
+
+						BlockStorage._integrated_removeBlockInfo(block.getLocation(), false);
+						block.getWorld().playEffect(block.getLocation(), Effect.STEP_SOUND, Material.OAK_LEAVES);
+						block.setType(Material.AIR);
+
+						plant.setType(Material.OAK_SAPLING);
+						BlockStorage._integrated_removeBlockInfo(plant.getLocation(), false);
+						BlockStorage.store(plant, getItem(berry.toBush()));
+						return berry.getItem();
+					default:
+						block.setType(Material.OAK_SAPLING);
+						BlockStorage._integrated_removeBlockInfo(block.getLocation(), false);
+						BlockStorage.store(block, getItem(berry.toBush()));
+						return berry.getItem();
 				}
 			}
 		}
-		
-		return itemstack;
+
+		return null;
 	}
 
 	public static ExoticGarden getInstance() {
